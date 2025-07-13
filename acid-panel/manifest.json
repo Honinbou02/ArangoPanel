@@ -7,7 +7,7 @@
     "arangodb": "^3.9.0"
   },
   "main": "index.js",
-  "ui": "frontend/index.html",        // <- ESSA LINHA ATIVA O BOTÃO
+  "ui": "frontend/index.html",
   "defaultDocument": "frontend/index.html",
   "files": {
     "path": "frontend"
