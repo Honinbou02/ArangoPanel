@@ -3,13 +3,37 @@
 const db = require('@arangodb').db;
 const joi = require('joi');
 const request = require('@arangodb/request');
+const fs = require('fs');
 const createRouter = require('@arangodb/foxx/router');
-
-// Serve a pasta "frontend" como arquivos estáticos
-module.context.use("/", module.context.static("frontend"));
 
 const router = createRouter();
 module.context.use(router);
+
+// ✅ Serve arquivos estáticos da pasta "frontend"
+// Usando API moderna se disponível, senão fallback manual
+try {
+  if (typeof module.context.static === 'function') {
+    module.context.use("/", module.context.static("frontend"));
+  } else {
+    // fallback para Arango < 3.10
+    router.get('/frontend/:file', function (req, res) {
+      const file = module.context.fileName('frontend/' + req.pathParams.file);
+      if (!fs.exists(file)) {
+        res.throw('not found', 'Arquivo não encontrado');
+      }
+      res.send(fs.read(file));
+    }).pathParam('file', joi.string().required());
+  }
+} catch (e) {
+  // fallback de segurança
+  router.get('/frontend/:file', function (req, res) {
+    const file = module.context.fileName('frontend/' + req.pathParams.file);
+    if (!fs.exists(file)) {
+      res.throw('not found', 'Arquivo não encontrado');
+    }
+    res.send(fs.read(file));
+  }).pathParam('file', joi.string().required());
+}
 
 // Redireciona "/" para a interface visual
 router.get('/', (req, res) => {
