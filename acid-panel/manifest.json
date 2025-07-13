@@ -1,0 +1,21 @@
+{
+  "name": "acid-panel",
+  "version": "1.0.0",
+  "description": "Visual panel for creating ArangoDB collections and schemas",
+  "author": "ArangoPanel",
+  "engines": {
+    "arangodb": "^3.9.0"
+  },
+  "main": "index.js",
+  "defaultDocument": "frontend/index.html",
+  "files": {
+    "path": "frontend"
+  },
+  "configuration": {
+    "acidUrl": {
+      "type": "string",
+      "default": "http://localhost:8529/acid",
+      "description": "Base URL of ArangoACID microservice"
+    }
+  }
+}
