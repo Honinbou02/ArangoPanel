@@ -7,10 +7,10 @@
     "arangodb": "^3.9.0"
   },
   "main": "index.js",
-  "ui": "frontend/index.html",
-  "defaultDocument": "frontend/index.html",
+  "defaultDocument": "index.html",
   "files": {
-    "path": "frontend"
+    "/index.html": "index.html",
+    "/script.js": "script.js"
   },
   "configuration": {
     "acidUrl": {

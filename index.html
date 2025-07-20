@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>ArangoDB Collection Builder</title>
+  <style>
+    :root {
+      --bg-color: #f3f6fc;
+      --panel-color: #ffffff;
+      --primary-color: #4a90e2;
+      --accent-color: #3b76c2;
+      --text-color: #333;
+      --border-color: #ddd;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-color);
+      margin: 0;
+      padding: 2em;
+      color: var(--text-color);
+    }
+
+    h1, h2 {
+      color: var(--accent-color);
+    }
+
+    button {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-color);
+    }
+
+    #showInterface {
+      display: inline-block;
+      margin-bottom: 2em;
+    }
+
+    #interface {
+      display: none;
+      background: var(--panel-color);
+      border-radius: 8px;
+      padding: 2em;
+      box-shadow: var(--shadow);
+      max-width: 900px;
+      margin: auto;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 1.5em;
+      font-weight: 500;
+    }
+
+    input[type="text"], input[type="number"], input[type="email"], select {
+      padding: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+
+    th {
+      background: #f0f3f9;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .removeField {
+      background: #e74c3c;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+
+    .removeField:hover {
+      background: #c0392b;
+    }
+
+    .fieldRow input,
+    .fieldRow select {
+      width: 100%;
+    }
+
+    .action-buttons {
+      margin-top: 2em;
+    }
+
+    @media (max-width: 768px) {
+      table, tbody, tr, td, th {
+        display: block;
+        width: 100%;
+      }
+      tr {
+        margin-bottom: 1em;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="showInterface">🚀 Criar nova Collection</button>
+
+  <div id="interface">
+    <h1>Criar Collection no ArangoDB</h1>
+
+    <label>📦 Nome da Collection:
+      <input id="collectionName" placeholder="ex: users" />
+    </label>
+
+    <h2>Campos do Documento</h2>
+    <table id="fieldsTable">
+      <thead>
+        <tr>
+          <th>Campo</th>
+          <th>Tipo</th>
+          <th>Obrigatório?</th>
+          <th>Validações (JSON)</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="fieldRow">
+          <td><input class="fieldName" placeholder="ex: email" /></td>
+          <td>
+            <select class="fieldType">
+              <option value="string">string</option>
+              <option value="number">number</option>
+              <option value="boolean">boolean</option>
+            </select>
+          </td>
+          <td style="text-align:center"><input type="checkbox" class="fieldRequired" /></td>
+          <td><input class="fieldValidations" placeholder='{"min":2}' /></td>
+          <td><button class="removeField">Remover</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <button id="addField">➕ Adicionar Campo</button>
+
+    <h2>Relações</h2>
+    <table id="relationsTable">
+      <thead>
+        <tr>
+          <th>Campo</th>
+          <th>Ref Collection</th>
+          <th>Ref Field</th>
+          <th>onDelete</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="relationRow">
+          <td><input class="relField" placeholder="ex: userId" /></td>
+          <td><select class="relRefCollection"></select></td>
+          <td><input class="relRefField" value="_key" /></td>
+          <td>
+            <select class="relOnDelete">
+              <option value="cascade">cascade</option>
+              <option value="restrict">restrict</option>
+              <option value="ignore">ignore</option>
+            </select>
+          </td>
+          <td><button class="removeRelation">Remover</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <button id="addRelation">➕ Adicionar Relação</button>
+
+    <div class="action-buttons">
+      <button id="createBtn">✅ Criar Collection com Schema</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const auth = 'Basic ' + btoa('root:5e6a9adb8f28bf7edccb');
+    const baseUrl = 'https://lng-wp-db-arangodb.gkwr61.easypanel.host/_db/_system';
+
+    async function loadCollections() {
+      try {
+        const res = await fetch(`${baseUrl}/_api/collection`, {
+          headers: { 'Authorization': auth }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.errorMessage || 'Erro ao buscar collections');
+        return data.result.map(col => col.name);
+      } catch (err) {
+        alert('Erro ao carregar collections: ' + err.message);
+        return [];
+      }
+    }
+
+    async function fillRefCollections() {
+      const collections = await loadCollections();
+      document.querySelectorAll('.relRefCollection').forEach(select => {
+        select.innerHTML = '';
+        collections.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+      });
+    }
+
+    // Atualiza o dropdown das collections ao abrir interface
+    document.getElementById('showInterface')?.addEventListener('click', fillRefCollections);
+
+    // Atualiza quando adicionar nova linha de relação
+    document.getElementById('addRelation')?.addEventListener('click', () => {
+      setTimeout(fillRefCollections, 100); // dá tempo pro clone acontecer
+    });
+
+    // Atualiza na primeira carga
+    window.addEventListener('DOMContentLoaded', fillRefCollections);
+  </script>
+</body>
+</html>

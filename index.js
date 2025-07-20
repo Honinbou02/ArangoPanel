@@ -9,15 +9,14 @@ const createRouter = require('@arangodb/foxx/router');
 const router = createRouter();
 module.context.use(router);
 
-// ✅ Serve arquivos estáticos da pasta "frontend"
-// Usando API moderna se disponível, senão fallback manual
+// ✅ Serve arquivos estáticos da RAIZ (index.html, script.js, etc.)
 try {
   if (typeof module.context.static === 'function') {
-    module.context.use("/", module.context.static("frontend"));
+    module.context.use("/", module.context.static("."));
   } else {
     // fallback para Arango < 3.10
-    router.get('/frontend/:file', function (req, res) {
-      const file = module.context.fileName('frontend/' + req.pathParams.file);
+    router.get('/:file', function (req, res) {
+      const file = module.context.fileName(req.pathParams.file);
       if (!fs.exists(file)) {
         res.throw('not found', 'Arquivo não encontrado');
       }
@@ -25,9 +24,9 @@ try {
     }).pathParam('file', joi.string().required());
   }
 } catch (e) {
-  // fallback de segurança
-  router.get('/frontend/:file', function (req, res) {
-    const file = module.context.fileName('frontend/' + req.pathParams.file);
+  // fallback seguro
+  router.get('/:file', function (req, res) {
+    const file = module.context.fileName(req.pathParams.file);
     if (!fs.exists(file)) {
       res.throw('not found', 'Arquivo não encontrado');
     }
@@ -35,12 +34,12 @@ try {
   }).pathParam('file', joi.string().required());
 }
 
-// Redireciona "/" para a interface visual
+// ✅ Redireciona "/" para index.html
 router.get('/', (req, res) => {
-  res.redirect(module.context.mount + '/frontend/index.html');
+  res.redirect(module.context.mount + '/index.html');
 });
 
-// Endpoint para criar coleção + schema + relations
+// ✅ API: Criação de collection + schema + relações
 router.post('/api/collections', (req, res) => {
   const { name, fields = [], relations = [], testDocument } = req.body;
 
@@ -48,13 +47,13 @@ router.post('/api/collections', (req, res) => {
     res.throw('bad request', 'name required');
   }
 
-  // Cria a coleção se não existir
+  // Cria a coleção
   let col = db._collection(name);
   if (!col) {
     col = db._create(name);
   }
 
-  // Monta o schema Joi com base nos campos fornecidos
+  // Monta schema Joi
   const schemaObj = {};
   fields.forEach(f => {
     let fieldSchema = joi;
@@ -79,20 +78,20 @@ router.post('/api/collections', (req, res) => {
           }
         });
       } catch (err) {
-        // ignora validações malformadas
+        // ignora validações inválidas
       }
     }
     schemaObj[f.name] = fieldSchema;
   });
 
-  // Salva o schema na collection "schemas_config"
+  // Salva schema
   const schemas = db._collection('schemas_config') || db._create('schemas_config');
   schemas.save({
     collection: name,
     schema: JSON.stringify(schemaObj)
   });
 
-  // Salva as relações (FKs) na collection "relations_config"
+  // Salva relações (FKs)
   if (relations.length) {
     const rels = db._collection('relations_config') || db._create('relations_config');
     relations.forEach(rel => {
@@ -101,7 +100,7 @@ router.post('/api/collections', (req, res) => {
     });
   }
 
-  // Testa inserção opcional via ArangoACID (dummy insert)
+  // Testa inserção via ArangoACID (opcional)
   if (testDocument) {
     const acidUrl = module.context.configuration.acidUrl.replace(/\/$/, '');
     try {
